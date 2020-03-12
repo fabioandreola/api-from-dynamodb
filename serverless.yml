@@ -1,0 +1,42 @@
+service: rest-api-from-dynamodb
+
+provider:
+  name: aws
+  runtime: java11
+  stage: dev
+  region: ${self:provider.environment.REGION}
+  environment:
+    REGION: eu-west-1
+    PUNTERS_TABLE_NAME: "${self:custom.dynamodb_table}"
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: "*"
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:Query
+        - dynamodb:Scan
+      Resource: ${self:custom.dynamodb_arn}
+
+custom:
+  default_stage: dev
+  stage: ${opt:stage, self:custom.default_stage}
+  region: ${opt:region, self:provider.region}
+  dynamodb_table: player-categories-${self:custom.stage}
+  dynamodb_arn: arn:aws:dynamodb:${self:custom.region}:*:table/${self:custom.dynamodb_table}
+
+package:
+  artifact: build/libs/api-from-dynamodb-all.jar
+
+functions:
+  getPunter:
+    handler: com.casumo.punters.handlers.GetPuntersHandler::handle
+    description: Returns punter details
+    events:
+      - http: GET /player/{player_ref}
+    memorySize: 256
+    timeout: 20
